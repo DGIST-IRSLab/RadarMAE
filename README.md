@@ -10,7 +10,7 @@
 [![Conference](https://img.shields.io/badge/Venue-NeurIPS%202026-blue)](https://neurips.cc)
 [![Paper](https://img.shields.io/badge/Paper-PDF-red)](https://gracenpraise.github.io/RadarMAE/static/pdfs/NeurIPS_2026_camera.pdf)
 [![Project Page](https://img.shields.io/badge/Project-Website-green)](https://gracenpraise.github.io/RadarMAE/)
-[![Checkpoint](https://img.shields.io/badge/Checkpoint-Releases-orange)](https://github.com/DGIST-IRSLab/RadarMAE/releases)
+[![Checkpoint](https://img.shields.io/badge/Checkpoint-Releases-orange)](https://github.com/GracenPraise/RadarMAE/releases/tag/v1.0.0)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE)
 
 </div>
@@ -130,13 +130,13 @@ Fine-tuning uses the original K-Radar labels (`<seq>/info_label/*.txt`). The rev
 
 | Model | Pre-training data | Epochs | BEV AP@0.3 | BEV AP@0.5 | 3D AP@0.3 | 3D AP@0.5 | Download |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| RadarMAE (ViT-B, axial) | K-Radar train split | 800 | 64.17 | 48.44 | 58.85 | 30.93 | [RadarMAE.pth](https://github.com/DGIST-IRSLab/RadarMAE/releases/download/v1.0/RadarMAE.pth) (614 MB) |
+| RadarMAE (ViT-B, axial) | K-Radar train split | 800 | 64.17 | 48.44 | 58.85 | 30.93 | [RadarMAE.pth](https://github.com/GracenPraise/RadarMAE/releases/download/v1.0.0/RadarMAE.pth) (614 MB) |
 
 AP values are Sedan detection on K-Radar-20 as reported in the paper (Table 2).
 
 Download the checkpoint to the repository root, where `finetune/configs/cfg_RadarMAE.yml` expects it:
 ```bash
-wget https://github.com/DGIST-IRSLab/RadarMAE/releases/download/v1.0/RadarMAE.pth
+wget https://github.com/GracenPraise/RadarMAE/releases/download/v1.0.0/RadarMAE.pth
 sha256sum RadarMAE.pth   # 800c2d86d3ae7f2d4741db87223156f0922549f2293096df2bddffce1ee8b6e1
 ```
 It contains the encoder/decoder weights (`model`) and the pre-training arguments (`args`, an `argparse.Namespace`, so load it with `torch.load(..., weights_only=False)`). Fine-tuning reads `args` to configure the encoder.
