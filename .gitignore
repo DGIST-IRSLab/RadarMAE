@@ -1,0 +1,18 @@
+# Local data / run outputs (symlinks are matched without a trailing slash)
+/data
+/outputs
+wandb/
+
+# Checkpoints (RadarMAE.pth is distributed as a release asset)
+*.pth
+*.pt
+
+# Local dependency dir (use requirements.txt)
+/.pydeps
+
+# Python / build artifacts (CUDA ops are compiled in place)
+__pycache__/
+*.py[cod]
+*.so
+build/
+*.egg-info/

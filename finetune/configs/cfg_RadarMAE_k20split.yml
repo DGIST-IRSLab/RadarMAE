@@ -1,0 +1,408 @@
+### ----- General ----- ###
+GENERAL:
+  NAME: 'RTNH'
+  COMMENT1: 'Single-stage fine-tuning with MAE pretrained encoder'
+  COMMENT2: 'K-Radar v1.0 labels are enforced at launch'
+  COMMENT3: 'Final validation/test evaluation uses model_last.pt'
+  VERSION: '2.0'
+  SEED: 2026
+  IS_CUDA_SEED: True
+  IS_DETERMINISTIC: True
+  DEVICE: 'gpu'
+  RESUME:
+    IS_RESUME: False
+    PATH_EXP: # None
+    START_EP: # None
+    IS_COPY_LOGS: True
+
+  LOGGING:
+    IS_LOGGING: True
+    PATH_LOGGING: '../outputs/finetune'
+    IS_SAVE_MODEL: True
+    INTERVAL_EPOCH_MODEL: 1
+    INTERVAL_EPOCH_UTIL: 5
+    WANDB:
+      ENABLE: False
+      MODE: offline
+      DIR: ../outputs/finetune/wandb_logs
+      PROJECT: 'radar_mae'
+      ENTITY: # optional
+      RUN_NAME: # optional custom run name
+is_validation_updated: True
+### ----- General ----- ###
+
+### ----- Dataset ----- ###
+cfg_dataset_ver2: True
+DATASET:
+  NAME: 'KRadarDetection_v2_1'
+
+  NUM: # Total number of frames, just make this blank
+
+  path_data:
+    # Labels/calibration and RA maps are stored under separate roots.
+    list_dir_kradar: ['../data/K-Radar_RA/RAE']
+    split: ['./resources/split/train_1-20.txt',
+            './resources/split/test_1-20.txt']
+  label_version: 'v1_0'
+  item: {
+    'calib': True,
+    'ldr64': False,
+    'ldr128': False,
+    'rdr': False,
+    'rdr_sparse': False,
+    'rdr_polar_3d': False,
+    'ra_map': True,
+    'cam': False,
+  }
+  calib: {
+    'z_offset': 0.7
+  }
+  ldr64: {
+    'processed': False,
+    'skip_line': 13,
+    'n_attr': 9,
+    'inside_ldr64': True,
+    'calib': True,
+  }
+  rdr: {
+    'cube': False,
+  }
+  rdr_sparse: {
+    'processed': False,
+    'rate': 0.1
+  }
+  ra_map:
+    dir: '../data/K-Radar_RA'
+    # Preprocessed cache produced by precache_full_kradar_dataset.py.
+    # Cache files: (1, 112, 258) float32 with dB + ra_map_norm + axis transpose
+    # + BICUBIC resize already applied. Set to empty string to disable.
+    cache_dir: ''
+    normalize:
+      enable: True
+      # Matched to PRETRAIN_PATH args (full K-Radar dataset).
+      mean: -42.3409423828
+      std: 8.3755702972
+      # mean: -41.2429644302
+      # std: 9.0808973724
+  rdr_polar_3d: {
+    'processed': True,
+    'dir': '../data/K-Radar_RA/RAE',
+    'in_pc100p': False,
+    'has_doppler': False
+  }
+  CLASS_INFO:
+    CLASS_ID: {
+      'Sedan': 1,
+      'Bus or Truck': 2,
+      'Motorcycle': 3,
+      'Bicycle': 4,
+      'Bicycle Group': 5,
+      'Pedestrian': 6,
+      'Pedestrian Group': 7,
+      'Background': 0,
+    }
+    IS_CONSIDER_CLASS_NAME_CHANGE: False
+    CLASS_NAME_CHANGE: {
+      'Sedan': 'Sedan',
+      'Bus or Truck': 'Bus or Truck',
+      'Motorcycle': 'Motorcycle',
+      'Bicycle': 'Bicycle',
+      'Bicycle Group': 'Bicycle Group',
+      'Pedestrian': 'Pedestrian',
+      'Pedestrian Group': 'Pedestrian Group',
+    }
+    NUM_CLS: 7
+    SCALE_SMALL_CLS: 1.0
+  roi: {
+    'filter': True,
+    'xyz': [0, -6.4, -2.0, 72.0, 6.4, 7.6],
+    'keys': ['rdr_sparse'],
+    'check_azimuth_for_rdr': True,
+    'azimuth_deg': [-53,53],
+    'grid_size': 0.4,
+    'voxel_size': [0.4, 0.4, 0.4],
+  }
+  label: {
+    'calib':            True,
+    'onlyR':            False,
+    'consider_cls':     True,
+    'consider_roi':     True,
+    'remove_0_obj':     True,
+    'Sedan':            [True,  1,  [0, 1, 0],       [0,255,0]],
+    'Bus or Truck':     [True,  2,  [1, 0.2, 0],     [0,50,255]],
+    'Motorcycle':       [True,  3,  [1, 0, 0],       [0,0,255]],
+    'Bicycle':          [True,  4,  [1, 1, 0],       [0,255,255]],
+    'Bicycle Group':    [True,  5,  [0, 0.5, 1],     [0,128,255]],
+    'Pedestrian':       [True,  6,  [0, 0, 1],       [255,0,0]],
+    'Pedestrian Group': [True,  7,  [0.4, 0, 1],     [255,0,100]],
+    'Label':            [False, -1, [0.5, 0.5, 0.5], [128,128,128]],
+  }
+  collate_fn: 'v2_0'
+  load_from_pickle: './pkl'
+  train_subset_ratio: 1.0
+  train_subset_seed: 2025
+### ----- Dataset ----- ###
+
+### ----- Model ----- ###
+MODEL:
+  NAME: 'RTNH'
+  SKELETON: 'RadarBase'
+
+  BACKBONE:
+    TYPE: '2D'
+    NAME: 'MAEPolarBEVBackbone'
+    INPUT_KEY: 'ra_map'
+    OUT_CHANNELS: 768
+    MAE:
+      IMG_HEIGHT: 112
+      IMG_WIDTH: 258
+      TOKENIZER: 'stripe'  # 'stripe' or 'patch'
+      STRIPE_ENCODER: 'unified'
+      PATCH_SIZE: [4, 16]
+      STRIPE_PATCH_WIDTH: [2, 3]
+      STRIPE_PATCH_STRIDE: [2, 3]
+      STRIPE_POOL: [1, 1]
+      EMBED_DIM: 768
+      DEPTH: 12
+      NUM_HEADS: 12
+      MLP_RATIO: 4.0
+      USE_BATCH_NORM: False
+      IN_CHANS: 1
+      STEM_OUT_CHANS: 64
+      PRETRAIN_AXIS: 'azimuth_range'
+      CONV_STEM_MODE: 'per_token'  
+      USE_INPUT_NORM: True
+      POS_EMBED_MODE: 'PPE'  # 'PPE' (Physical-based) or 'PE' (Standard sincos)
+      PRETRAIN_PATH: '../RadarMAE.pth'
+      # When only PRETRAIN_PATH is specified, the values above for TOKENIZER/PATCH_SIZE/
+      # STRIPE_*/CONV_STEM_MODE/POS_EMBED_MODE/USE_INPUT_NORM/IMG_*/IN_CHANS/PRETRAIN_AXIS
+      # The checkpoint contains stale scratch dataset paths. Its model settings are
+      # matched explicitly above, so keep the dataset/split values from this YAML.
+      AUTO_OVERRIDE_FROM_PRETRAIN: False
+    POLAR_BEV:
+      ALIGN_CORNERS: True
+      DIRECT_STRIPE:
+        NUM_HEADS: 4
+        NUM_POINTS: 4
+        FUSE: 'mean'
+      AXIAL_FUSE: 'mean'
+      REFINE:
+        ENABLED: True
+        TYPE: 'aspp_lite'
+        NUM_BLOCKS: 1
+        DILATIONS: [1, 3, 5]
+    SIMPLE_FPN:
+      ENABLED: False
+
+  HEAD:
+    NAME: 'AnchorHeadSingle'
+    INPUT_CHANNELS: 768
+    CLASS_AGNOSTIC: False
+
+    USE_DIRECTION_CLASSIFIER: True
+    DIR_OFFSET: 0.78539
+    DIR_LIMIT_OFFSET: 0.0
+    NUM_DIR_BINS: 2
+
+    ANCHOR_GENERATOR_CONFIG: [
+      {
+          'class_name': 'Sedan',
+          'anchor_sizes': [[4.2, 2.1, 2.0]],
+          'anchor_rotations': [0, 1.57],
+          'anchor_bottom_heights': [-1.08],
+          'align_center': True,
+          'feature_map_stride': 1,
+          'matched_threshold': 0.50,
+          'unmatched_threshold': 0.2
+      },
+      {
+          'class_name': 'Bus or Truck',
+          'anchor_sizes': [[9.5, 3.2, 3.7]],
+          'anchor_rotations': [0, 1.57],
+          'anchor_bottom_heights': [-1.08],
+          'align_center': True,
+          'feature_map_stride': 1,
+          'matched_threshold': 0.45,
+          'unmatched_threshold': 0.15
+      },
+      {
+          'class_name': 'Motorcycle',
+          'anchor_sizes': [[2.3, 1.1, 1.6]],
+          'anchor_rotations': [0, 1.57],
+          'anchor_bottom_heights': [-1.08],
+          'align_center': True,
+          'feature_map_stride': 1,
+          'matched_threshold': 0.35,
+          'unmatched_threshold': 0.10
+      },
+      {
+          'class_name': 'Bicycle',
+          'anchor_sizes': [[2.0, 1.2, 1.4]],
+          'anchor_rotations': [0, 1.57],
+          'anchor_bottom_heights': [-1.08],
+          'align_center': True,
+          'feature_map_stride': 1,
+          'matched_threshold': 0.35,
+          'unmatched_threshold': 0.10
+      },
+      {
+          'class_name': 'Bicycle Group',
+          'anchor_sizes': [[2.4, 8.5, 2.0]],
+          'anchor_rotations': [0, 1.57],
+          'anchor_bottom_heights': [-1.08],
+          'align_center': True,
+          'feature_map_stride': 1,
+          'matched_threshold': 0.35,
+          'unmatched_threshold': 0.10
+      },
+      {
+          'class_name': 'Pedestrian',
+          'anchor_sizes': [[1.0, 0.9, 2.4]],
+          'anchor_rotations': [0, 1.57],
+          'anchor_bottom_heights': [-1.08],
+          'align_center': True,
+          'feature_map_stride': 1,
+          'matched_threshold': 0.35,
+          'unmatched_threshold': 0.10
+      },
+      {
+          'class_name': 'Pedestrian Group',
+          'anchor_sizes': [[1.5, 1.8, 2.2]],
+          'anchor_rotations': [0, 1.57],
+          'anchor_bottom_heights': [-1.08],
+          'align_center': True,
+          'feature_map_stride': 1,
+          'matched_threshold': 0.35,
+          'unmatched_threshold': 0.10
+      },
+    ]
+
+    TARGET_ASSIGNER_CONFIG:
+      NAME: AxisAlignedTargetAssigner
+      POS_FRACTION: -1.0
+      SAMPLE_SIZE: 512
+      NORM_BY_NUM_EXAMPLES: False
+      MATCH_HEIGHT: False
+      BOX_CODER: ResidualCoder
+
+    LOSS_CONFIG:
+      LOSS_WEIGHTS: {
+          'cls_weight': 1.0,
+          'loc_weight': 2.0,
+          'dir_weight': 0.2,
+          'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      }
+
+    DIM: 768
+    BOX_CODE: ['xc', 'yc', 'zc', 'xl', 'yl', 'zl', 'cos', 'sin']
+
+    POST_PROCESSING:
+      RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+      SCORE_THRESH: 0.1
+      OUTPUT_RAW_SCORE: False
+
+      EVAL_METRIC: kitti
+
+      NMS_CONFIG:
+        MULTI_CLASSES_NMS: True
+        NMS_TYPE: nms_gpu
+        NMS_THRESH: 0.01
+        NMS_PRE_MAXSIZE: 4096
+        NMS_POST_MAXSIZE: 500
+
+  ROI_HEAD:
+### ----- Model ----- ###
+
+### ----- Optimizer ----- ###
+OPTIMIZER:
+  NAME: 'AdamW'
+
+  LR: 0.0001
+  MIN_LR: 0.00001
+  BETAS: [0.9, 0.999]
+  WEIGHT_DECAY: 0.001
+  MOMENTUM: 0.9
+
+  BATCH_SIZE: 8
+  NUM_WORKERS: 16
+
+  MAX_EPOCH: 11
+
+  SCHEDULER: 'CosineAnnealingLR'
+  TYPE_TOTAL_ITER: 'every'
+### ----- Optimizer ----- ###
+
+### ----- Validation ----- ###
+cfg_eval_ver2: True
+VAL:
+  IS_VALIDATE: True
+  IS_CONSIDER_VAL_SUBSET: True
+  VAL_PER_EPOCH_SUBSET: 1
+  NUM_SUBSET: 500
+  VAL_PER_EPOCH_FULL: 11
+
+  LIST_VAL_CONF_THR: [0.3, 0.5, 0.7]
+  LIST_VAL_IOU: [0.7, 0.5, 0.3]
+
+  CLASS_VAL_KEYWORD: {
+    'Sedan': 'sed',
+    'Bus or Truck': 'bus',
+    'Motorcycle': 'mot',
+    'Bicycle': 'bic',
+    'Bicycle Group': 'big',
+    'Pedestrian': 'ped',
+    'Pedestrian Group': 'peg'
+  }
+
+  REGARDING: 'anchor'
+  LIST_CARE_VAL: ['Sedan', 'Bus or Truck', 'Motorcycle', 'Bicycle',
+                  'Bicycle Group', 'Pedestrian', 'Pedestrian Group']
+### ----- Validation ----- ###
+
+### ----- Visualization ----- ###
+VIS:
+  CLASS_BGR: {
+    'Sedan': [0,255,0],
+    'Bus or Truck': [0,50,255],
+    'Motorcycle': [0,0,255],
+    'Bicycle': [0,255,255],
+    'Bicycle Group': [0,128,255],
+    'Pedestrian': [255,0,0],
+    'Pedestrian Group': [255,0,100],
+    'Label': [128,128,128]
+  }
+
+  CLASS_RGB: {
+    'Sedan': [0, 1, 0],
+    'Bus or Truck': [1, 0.2, 0],
+    'Motorcycle': [1, 0, 0],
+    'Bicycle': [1, 1, 0],
+    'Bicycle Group': [0, 0.5, 1],
+    'Pedestrian': [0, 0, 1],
+    'Pedestrian Group': [0.4, 0, 1],
+    'Label': [0.5, 0.5, 0.5]
+  }
+
+  ROI:
+    TYPE: 'default'
+    DEFAULT: [0,100,-40,40,-10,60]
+
+  Z_CENTER: {
+    'Sedan': 0.5,
+    'Bus or Truck': 1.5,
+    'Motorcycle': 0.5,
+    'Bicycle': 0.5,
+    'Bicycle Group': 0.5,
+    'Pedestrian': 0.5,
+    'Pedestrian Group': 0.5,
+  }
+
+  Z_HEIGHT: {
+    'Sedan': 1.9,
+    'Bus or Truck': 1.9,
+    'Motorcycle': -1,
+    'Bicycle': -1,
+    'Bicycle Group': -1,
+    'Pedestrian': 2,
+    'Pedestrian Group': -1,
+  }

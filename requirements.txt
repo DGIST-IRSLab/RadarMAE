@@ -1,0 +1,20 @@
+# Versions used to reproduce the paper results (Python 3.10, CUDA 12.8).
+# Install PyTorch for your CUDA version first, e.g.
+#   pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu128
+torch==2.7.1
+torchvision==0.22.1
+timm==0.6.12            # exact version is checked by main_pretrain.py
+numpy==1.26.4
+scipy==1.15.3
+matplotlib==3.7.5
+opencv-python==4.8.1.78
+scikit-image==0.25.2
+numba==0.59.1           # K-Radar official evaluation
+easydict==1.14
+PyYAML==6.0.3
+tqdm==4.68.2
+psutil==7.2.2
+tensorboard==2.20.0
+open3d==0.20.0          # imported by the K-Radar dataset / utility code in finetune/; needs libusb-1.0 (see README)
+PyQt5==5.15.11          # imported by the K-Radar utility code in finetune/
+# Optional: wandb (logging, disabled by default)
